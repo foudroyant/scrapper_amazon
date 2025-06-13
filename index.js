@@ -6,15 +6,14 @@ const PORT = 3000;
 
 app.use(express.json());
 
-
 async function scrapeAmazonProduct(url) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
+
   const page = await browser.newPage();
 
-  // Anti-bot headers
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
     "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
@@ -34,25 +33,20 @@ async function scrapeAmazonProduct(url) {
       const getAttr = (selector, attr) =>
         document.querySelector(selector)?.getAttribute(attr) || null;
 
-      // Titre
       const title = getText("#productTitle");
 
-      // Prix (divers emplacements selon produits)
       const price =
         getText(".a-size-base.a-color-price.a-color-price") ||
         getText("#priceblock_dealprice") ||
         getText("#price_inside_buybox");
 
-      // Description courte
-      const description = getText(".a-expander-content.a-expander-partial-collapse-content");
+      const description = getText(".a-expander-content.a-expander-partial-collapse-content") || '';
       const cleanText = description.replace(/\s+/g, ' ').trim();
 
-      // Images principales
       const images = Array.from(
         document.querySelectorAll("#landingImage")
       ).map((img) => img.src.replace("_SS40_", "_SL1000_"));
 
-      // Informations techniques ou générales
       const info = {};
       document
         .querySelectorAll("#productDetails_techSpec_section_1 tr")
@@ -62,17 +56,18 @@ async function scrapeAmazonProduct(url) {
           if (key && val) info[key] = val;
         });
 
-      return { title, price, /*description : cleanText,*/ images, info };
+      return { title, price, description: cleanText, images, info };
     });
 
-    console.log(data);
+    await browser.close();
+    return data;
+
   } catch (err) {
     console.error("Erreur :", err.message);
-  } finally {
     await browser.close();
+    throw err;
   }
 }
-
 
 app.post('/scrape', async (req, res) => {
   const { url } = req.body;
@@ -83,18 +78,17 @@ app.post('/scrape', async (req, res) => {
 
   try {
     const data = await scrapeAmazonProduct(url);
-    return res.send(JSON.stringify(data));
+    return res.json(data);
   } catch (error) {
     console.error('Erreur:', error.message);
     return res.status(500).json({ error: 'Erreur lors du scraping' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Serveur Express lancé sur http://localhost:${PORT}`);
-});
-
-
 app.get('/status', (req, res) => {
   res.json({ status: 'ok', message: 'Serveur en ligne 🚀' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Serveur Express lancé sur http://localhost:${PORT}`);
 });
