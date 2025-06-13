@@ -89,3 +89,8 @@ app.post('/scrape', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Serveur Express lancé sur http://localhost:${PORT}`);
 });
+
+
+app.get('/status', (req, res) => {
+  res.json({ status: 'ok', message: 'Serveur en ligne 🚀' });
+});
