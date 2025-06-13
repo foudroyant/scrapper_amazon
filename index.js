@@ -62,7 +62,7 @@ async function scrapeAmazonProduct(url) {
           if (key && val) info[key] = val;
         });
 
-      return { title, price, description : cleanText, images, info };
+      return { title, price, /*description : cleanText,*/ images, info };
     });
 
     console.log(data);
