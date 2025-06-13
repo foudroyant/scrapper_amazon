@@ -14,10 +14,10 @@ async def test():
         response = requests.post(API_URL, json=data)
 
         # Vérification du code de réponse
-        response.raise_for_status()
+        #response.raise_for_status()
 
         # Résultat JSON
-        result = await response.json()
+        result = await response
         print("Résultat du scraping :")
         print(result)
 
@@ -27,4 +27,3 @@ async def test():
         print("Réponse non JSON valide.")
 
 
-test()

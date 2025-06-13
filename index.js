@@ -83,7 +83,7 @@ app.post('/scrape', async (req, res) => {
 
   try {
     const data = await scrapeAmazonProduct(url);
-    return res.json(data);
+    return res.send(JSON.stringify(data));
   } catch (error) {
     console.error('Erreur:', error.message);
     return res.status(500).json({ error: 'Erreur lors du scraping' });
