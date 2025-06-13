@@ -45,6 +45,7 @@ async function scrapeAmazonProduct(url) {
 
       // Description courte
       const description = getText(".a-expander-content.a-expander-partial-collapse-content");
+      const cleanText = description.replace(/\s+/g, ' ').trim();
 
       // Images principales
       const images = Array.from(
@@ -61,7 +62,7 @@ async function scrapeAmazonProduct(url) {
           if (key && val) info[key] = val;
         });
 
-      return { title, price, description, images, info };
+      return { title, price, description : cleanText, images, info };
     });
 
     console.log(data);
