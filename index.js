@@ -69,6 +69,70 @@ async function scrapeAmazonProduct(url) {
   }
 }
 
+
+async function scrapeCdiscountProduct(url) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const page = await browser.newPage();
+
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+  );
+
+  await page.setExtraHTTPHeaders({
+    'accept-language': 'fr-FR,fr;q=0.9',
+  });
+
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+
+    const data = await page.evaluate(() => {
+      const getText = (selector) =>
+        document.querySelector(selector)?.textContent?.trim() || "";
+
+      const getAttr = (selector, attr) =>
+        document.querySelector(selector)?.getAttribute(attr) || ""; 
+
+      const title = getText('h1'); // Le titre est généralement dans un <h1>
+
+      const price = getText('.price'); // La classe peut varier légèrement selon le type de page
+
+      const description = getText('.descriptif'); // Parfois c'est ".descriptif", à ajuster si vide
+
+      const imageElements = document.querySelectorAll('.fpMainPicture img');
+      const images = Array.from(imageElements).map((img) =>
+        img.getAttribute('src')?.replace(/w\d+/, 'w1000')
+      );
+
+      const info = {};
+      document.querySelectorAll('.ficha_tech .fichCol1').forEach((element) => {
+        const key = element.textContent.trim();
+        const value = element.nextElementSibling?.textContent.trim();
+        if (key && value) info[key] = value;
+      });
+
+      return { title, price, description, images, info };
+    });
+
+    await browser.close();
+    return data;
+
+  } catch (err) {
+    console.error("Erreur :", err.message);
+    await browser.close();
+    throw err;
+  }
+}
+
+
+
+
+
+
 app.post('/scrape', async (req, res) => {
   const { url } = req.body;
 
