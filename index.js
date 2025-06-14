@@ -6,15 +6,14 @@ const PORT = 3000;
 
 app.use(express.json());
 
-
 async function scrapeAmazonProduct(url) {
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
+
   const page = await browser.newPage();
 
-  // Anti-bot headers
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
     "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
@@ -34,25 +33,20 @@ async function scrapeAmazonProduct(url) {
       const getAttr = (selector, attr) =>
         document.querySelector(selector)?.getAttribute(attr) || null;
 
-      // Titre
       const title = getText("#productTitle");
 
-      // Prix (divers emplacements selon produits)
       const price =
         getText(".a-size-base.a-color-price.a-color-price") ||
         getText("#priceblock_dealprice") ||
         getText("#price_inside_buybox");
 
-      // Description courte
-      const description = getText(".a-expander-content.a-expander-partial-collapse-content");
+      const description = getText(".a-expander-content.a-expander-partial-collapse-content") || '';
       const cleanText = description.replace(/\s+/g, ' ').trim();
 
-      // Images principales
       const images = Array.from(
         document.querySelectorAll("#landingImage")
       ).map((img) => img.src.replace("_SS40_", "_SL1000_"));
 
-      // Informations techniques ou générales
       const info = {};
       document
         .querySelectorAll("#productDetails_techSpec_section_1 tr")
@@ -62,14 +56,87 @@ async function scrapeAmazonProduct(url) {
           if (key && val) info[key] = val;
         });
 
-      return { title, price, description : cleanText, images, info };
+      return { title, price, description: cleanText, images, info };
     });
 
-    console.log(data);
+    await browser.close();
+    return data;
+
   } catch (err) {
     console.error("Erreur :", err.message);
-  } finally {
     await browser.close();
+    throw err;
+  }
+}
+
+
+async function scrapeCdiscountProduct(url) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  const page = await browser.newPage();
+
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+  );
+
+  await page.setExtraHTTPHeaders({
+    'accept-language': 'fr-FR,fr;q=0.9',
+  });
+
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+
+    const data = await page.evaluate(() => {
+      const getText = (selector) =>
+        document.querySelector(selector)?.textContent?.trim() || "";
+
+      const getAttr = (selector, attr) =>
+        document.querySelector(selector)?.getAttribute(attr) || ""; 
+
+      const title = getText('h1[itemprop="name"]'); // Le titre est généralement dans un <h1>
+
+      const price = getText('#DisplayPrice') + "€"; // La classe peut varier légèrement selon le type de page
+
+      const description = getText('#ProductSheetAccordion-content-1'); // Parfois c'est ".descriptif", à ajuster si vide
+      const info = getText('#ProductSheetAccordion-content-2')
+      
+
+      const imageElements = document.querySelector('#mainImage').src; //#mainImage
+      const images = [imageElements]
+      
+
+      return { title, price, description, images, info };
+    });
+
+    await browser.close();
+    return data;
+
+  } catch (err) {
+    console.error("Erreur :", err.message);
+    await browser.close();
+    throw err;
+  }
+}
+
+
+
+function detectSite(url) {
+  try {
+    const hostname = new URL(url).hostname;
+
+    if (/^(.+\.)?amazon\.[a-z]+$/.test(hostname)) {
+      return "Amazon";
+    } else if (/^(.+\.)?cdiscount\.com$/.test(hostname)) {
+      return "Cdiscount";
+    } else {
+      return "Autre";
+    }
+  } catch {
+    return "URL invalide";
   }
 }
 
@@ -77,24 +144,39 @@ async function scrapeAmazonProduct(url) {
 app.post('/scrape', async (req, res) => {
   const { url } = req.body;
 
-  if (!url || !url.includes('amazon.')) {
+  console.log(url)
+
+  /*if (!url || !url.includes('amazon.') || !url.includes('amazon.')) {
     return res.status(400).json({ error: 'URL Amazon invalide' });
-  }
+  }*/
 
   try {
-    const data = await scrapeAmazonProduct(url);
-    return res.json(data);
+    if(detectSite(url) == "Amazon"){
+      const data = await scrapeAmazonProduct(url);
+      console.log(data)
+      return res.json(data);
+    }
+    else if(detectSite(url) == "Cdiscount"){
+      const data = await scrapeCdiscountProduct(url);
+      console.log(data)
+      return res.json(data);
+    }
+    else {
+      return res.json({
+        "erreur" : "Saisissez un lien Amazon ou Cdiscount"
+      })
+    }
+    
   } catch (error) {
     console.error('Erreur:', error.message);
     return res.status(500).json({ error: 'Erreur lors du scraping' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Serveur Express lancé sur http://localhost:${PORT}`);
-});
-
-
 app.get('/status', (req, res) => {
   res.json({ status: 'ok', message: 'Serveur en ligne 🚀' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Serveur Express lancé sur http://localhost:${PORT}`);
 });
