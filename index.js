@@ -1,5 +1,6 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
+const { JSDOM } = require('jsdom');
 
 const app = express();
 const PORT = 3000;
@@ -24,28 +25,23 @@ async function scrapeAmazonProduct(url) {
   });
 
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000  });
+    await page.waitForSelector('#altImages ul li');
 
+    // Récupérer les infos principales
     const data = await page.evaluate(() => {
       const getText = (selector) =>
         document.querySelector(selector)?.textContent?.trim() || null;
 
-      const getAttr = (selector, attr) =>
-        document.querySelector(selector)?.getAttribute(attr) || null;
-
       const title = getText("#productTitle");
 
       const price =
-        getText(".a-size-base.a-color-price.a-color-price") ||
-        getText("#priceblock_dealprice") ||
-        getText("#price_inside_buybox");
+        getText("#corePriceDisplay_desktop_feature_div span.a-price") ||
+        getText(".a-price") ||
+        getText("#corePriceDisplay_mobile_feature_div");
 
-      const description = getText(".a-expander-content.a-expander-partial-collapse-content") || '';
+      const description = getText("#feature-bullets") || '';
       const cleanText = description.replace(/\s+/g, ' ').trim();
-
-      const images = Array.from(
-        document.querySelectorAll("#landingImage")
-      ).map((img) => img.src.replace("_SS40_", "_SL1000_"));
 
       const info = {};
       document
@@ -56,8 +52,58 @@ async function scrapeAmazonProduct(url) {
           if (key && val) info[key] = val;
         });
 
-      return { title, price, description: cleanText, images, info };
+      return { title, price, description: cleanText, info };
     });
+
+    // Récupérer le HTML de la page
+    const html = await page.content();
+        // Parser avec jsdom
+        const dom = new JSDOM(html);
+        const document = dom.window.document;
+        // Image principale
+    const mainImage = document.querySelector('#imgTagWrapperId img')?.getAttribute('src');
+
+    // Images supplémentaires (miniatures)
+    const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
+        img.getAttribute('src').replace("._AC_US100_","")
+    );
+
+    data["images"] = thumbImages
+
+    
+    //console.log('Miniatures:', thumbImages);
+
+    // 🔁 Récupérer toutes les images via clics sur les miniatures
+    /*const imageUrls = new Set();
+    const thumbs = await page.$$('#altImages ul li');
+
+    for (let i = 0; i < thumbs.length; i++) {
+      const thumb = thumbs[i];
+      console.log(i)
+
+      // Scroll + click dans le navigateur (évite l'erreur "non cliquable")
+      await page.evaluate(el => {
+        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+        el.click();
+      }, thumb);
+
+      // Attendre que l’image principale change
+      await page.waitForSelector('.imgTagWrapper img', { timeout: 5000 }).catch(() => {});
+
+      const imgUrl = await page.evaluate(() => {
+        const img = document.querySelector('.imgTagWrapper img');
+        return img?.src?.replace('_SS40_', '_SL1000_') || null;
+      });
+
+      if (imgUrl) {
+        console.log(imgUrl)
+        imageUrls.add(imgUrl);
+      }
+
+      //await page.waitwaitForTimeout(500); // petite pause entre chaque clic
+    }
+
+    data.images = Array.from(imageUrls);*/
 
     await browser.close();
     return data;
