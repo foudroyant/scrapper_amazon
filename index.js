@@ -64,11 +64,14 @@ async function scrapeAmazonProduct(url) {
     const mainImage = document.querySelector('#imgTagWrapperId img')?.getAttribute('src');
 
     // Images supplémentaires (miniatures)
-    const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
+    /*const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
+        img.getAttribute('src').split("._")[0]+'.jpg'
+    );*/
+    const images_avis = Array.from(document.querySelectorAll('img[alt="Image client, cliquez pour ouvrir le commentaire client"]')).map(img =>
         img.getAttribute('src').split("._")[0]+'.jpg'
     );
 
-    data["images"] = thumbImages
+    data["images"] = images_avis
 
     
     //console.log('Miniatures:', thumbImages);
