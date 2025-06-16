@@ -29,7 +29,7 @@ async function autoScroll(page) {
 
 async function scrapeAmazonProduct(url) {
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: false,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
@@ -47,6 +47,7 @@ async function scrapeAmazonProduct(url) {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000  });
     await page.waitForSelector('#altImages ul li');
+    await page.click('#sp-cc-accept');
     await autoScroll(page);
 
     // Récupérer les infos principales
@@ -64,11 +65,16 @@ async function scrapeAmazonProduct(url) {
       const description = getText("#feature-bullets") || '';
       const cleanText = description.replace(/\s+/g, ' ').trim();
 
-      const images_avis = Array.from(document.querySelectorAll('img[alt="Image client, cliquez pour ouvrir le commentaire client"]')).map(img =>
+      let images_avis = Array.from(document.querySelectorAll('img[alt="Image client, cliquez pour ouvrir le commentaire client"]')).map(img =>
         img.getAttribute('src').split("._")[0]+'.jpg'
       );
 
-      //const liste_images = getText(".a-section _Y3Itb_media-thumbnail-overlay_1te5m")
+      if(images_avis.length == 0){
+          images_avis = Array.from(document.querySelectorAll('img[alt="Customer Image, click to open customer review"]')).map(img =>
+          img.getAttribute('src').split("._")[0]+'.jpg'
+        );
+      }
+
 
       const info = {};
       document
@@ -81,56 +87,6 @@ async function scrapeAmazonProduct(url) {
 
       return { title, price, description: cleanText, images : images_avis, info };
     });
-
-    // Récupérer le HTML de la page
-    /*const html = await page.content();
-        // Parser avec jsdom
-        const dom = new JSDOM(html);
-        const document = dom.window.document;
-        // Image principale
-    const mainImage = document.querySelector('#imgTagWrapperId img')?.getAttribute('src');
-
-    // Images supplémentaires (miniatures)
-    const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
-        img.getAttribute('src').split("._")[0]+'.jpg'
-    );
-
-    data["images"] = thumbImages*/
-
-    
-    //console.log('Miniatures:', thumbImages);
-
-    // 🔁 Récupérer toutes les images via clics sur les miniatures
-    /*const imageUrls = new Set();
-    const thumbs = await page.$$('#altImages ul li');
-
-    for (let i = 0; i < thumbs.length; i++) {
-      const thumb = thumbs[i];
-      console.log(i)
-
-      // Scroll + click dans le navigateur (évite l'erreur "non cliquable")
-      await page.evaluate(el => {
-        el.scrollIntoView({ behavior: 'instant', block: 'center' });
-        el.click();
-      }, thumb);
-
-      // Attendre que l’image principale change
-      await page.waitForSelector('.imgTagWrapper img', { timeout: 5000 }).catch(() => {});
-
-      const imgUrl = await page.evaluate(() => {
-        const img = document.querySelector('.imgTagWrapper img');
-        return img?.src?.replace('_SS40_', '_SL1000_') || null;
-      });
-
-      if (imgUrl) {
-        console.log(imgUrl)
-        imageUrls.add(imgUrl);
-      }
-
-      //await page.waitwaitForTimeout(500); // petite pause entre chaque clic
-    }
-
-    data.images = Array.from(imageUrls);*/
 
     await browser.close();
     return data;
