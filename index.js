@@ -65,7 +65,7 @@ async function scrapeAmazonProduct(url) {
 
     // Images supplémentaires (miniatures)
     const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
-        img.getAttribute('src').replace("._AC_US100_","")
+        img.getAttribute('src').split("._")[0]+'.jpg'
     );
 
     data["images"] = thumbImages
