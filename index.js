@@ -43,6 +43,12 @@ async function scrapeAmazonProduct(url) {
       const description = getText("#feature-bullets") || '';
       const cleanText = description.replace(/\s+/g, ' ').trim();
 
+      const images_avis = Array.from(document.querySelectorAll('img[alt="Image client, cliquez pour ouvrir le commentaire client"]')).map(img =>
+        img.getAttribute('src').split("._")[0]+'.jpg'
+      );
+
+      //const liste_images = getText(".a-section _Y3Itb_media-thumbnail-overlay_1te5m")
+
       const info = {};
       document
         .querySelectorAll("#productDetails_techSpec_section_1 tr")
@@ -52,11 +58,11 @@ async function scrapeAmazonProduct(url) {
           if (key && val) info[key] = val;
         });
 
-      return { title, price, description: cleanText, info };
+      return { title, price, description: cleanText, images : images_avis, info };
     });
 
     // Récupérer le HTML de la page
-    const html = await page.content();
+    /*const html = await page.content();
         // Parser avec jsdom
         const dom = new JSDOM(html);
         const document = dom.window.document;
@@ -64,14 +70,11 @@ async function scrapeAmazonProduct(url) {
     const mainImage = document.querySelector('#imgTagWrapperId img')?.getAttribute('src');
 
     // Images supplémentaires (miniatures)
-    /*const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
-        img.getAttribute('src').split("._")[0]+'.jpg'
-    );*/
-    const images_avis = Array.from(document.querySelectorAll('img[alt="Image client, cliquez pour ouvrir le commentaire client"]')).map(img =>
+    const thumbImages = Array.from(document.querySelectorAll('.imageThumbnail img')).map(img =>
         img.getAttribute('src').split("._")[0]+'.jpg'
     );
 
-    data["images"] = images_avis
+    data["images"] = thumbImages*/
 
     
     //console.log('Miniatures:', thumbImages);
