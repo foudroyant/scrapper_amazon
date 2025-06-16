@@ -7,6 +7,26 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Fonction de scroll infini
+async function autoScroll(page) {
+  await page.evaluate(async () => {
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      const distance = 100;
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+
+        if (totalHeight >= scrollHeight) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 100);
+    });
+  });
+}
+
 async function scrapeAmazonProduct(url) {
   const browser = await puppeteer.launch({
     headless: true,
@@ -27,6 +47,7 @@ async function scrapeAmazonProduct(url) {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000  });
     await page.waitForSelector('#altImages ul li');
+    await autoScroll(page);
 
     // Récupérer les infos principales
     const data = await page.evaluate(() => {
